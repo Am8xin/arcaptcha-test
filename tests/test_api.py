@@ -1,0 +1,123 @@
+"""REST API + persistence-across-restart tests."""
+
+from app.db import Run, make_session_factory
+
+from tests.conftest import wait_for_status
+
+TERMINAL = ("SUCCESS", "FAILED", "BLOCKED", "TIMEOUT", "CANCELLED")
+
+
+def test_healthz(client):
+    assert client.get("/healthz").json() == {"status": "ok"}
+
+
+def test_bots_endpoint_lists_registered_bots(client):
+    """No clean_registry here: the registry holds the auto-discovered demo bot."""
+    bots = client.get("/api/bots").json()
+    names = {b["name"] for b in bots}
+    assert "arcaptcha-demo" in names  # discovered from app/bots/
+
+    demo = next(b for b in bots if b["name"] == "arcaptcha-demo")
+    field_names = {f["name"] for f in demo["config_fields"]}
+    assert {"username", "password"} <= field_names
+    pw = next(f for f in demo["config_fields"] if f["name"] == "password")
+    assert pw["secret"] is True
+    assert pw["default"] == ""  # secrets are never sent to the client
+
+
+def test_bots_endpoint_lists_scripted_bot(client, scripted_bot):
+    bots = client.get("/api/bots").json()
+    assert "scripted" in {b["name"] for b in bots}
+
+
+def test_launch_via_api_and_follow_history(client, session_factory, scripted_bot):
+    response = client.post(
+        "/api/runs",
+        json={"bot": "scripted", "mode": "headless", "config": {"username": "demo"}},
+    )
+    assert response.status_code == 202
+    run_id = response.json()["run_id"]
+
+    detail = client.get(f"/api/runs/{run_id}").json()
+    assert detail["id"] == run_id
+    assert detail["bot"] == "scripted"
+    assert detail["mode"] == "headless"
+
+    # wait until finished, then check the persisted record
+    run = wait_for_status(session_factory, run_id, TERMINAL)
+    assert run.status == "SUCCESS"
+
+    final = client.get(f"/api/runs/{run_id}").json()
+    assert final["status"] == "SUCCESS"
+    assert final["challenge_id"] == "ch-scripted-1"
+    assert final["log"]
+
+
+def test_launch_unknown_bot_404(client):
+    assert client.post("/api/runs", json={"bot": "ghost", "mode": "headless"}).status_code == 404
+
+
+def test_launch_invalid_mode_422(client, scripted_bot):
+    response = client.post("/api/runs", json={"bot": "scripted", "mode": "stealth"})
+    assert response.status_code == 422
+
+
+def test_launch_missing_required_config_422(client, clean_registry):
+    from app.bots.base import Bot, BotResult, ConfigField
+
+    class Strict(Bot):
+        name = "strict"
+        title = "Strict"
+        config_fields = (ConfigField("token", "Token", required=True),)
+
+        def run(self, ctx):
+            return BotResult(status="SUCCESS")
+
+    clean_registry.register(Strict())
+    response = client.post("/api/runs", json={"bot": "strict", "mode": "headless", "config": {}})
+    assert response.status_code == 422
+
+
+def test_run_not_found_404(client):
+    assert client.get("/api/runs/nope").status_code == 404
+
+
+def test_cancel_finished_run_conflict(client, session_factory, scripted_bot):
+    run_id = client.post(
+        "/api/runs", json={"bot": "scripted", "mode": "headless"}
+    ).json()["run_id"]
+    wait_for_status(session_factory, run_id, TERMINAL)
+    response = client.post(f"/api/runs/{run_id}/cancel")
+    assert response.status_code == 409
+
+
+def test_stats_endpoint(client, session_factory, scripted_bot):
+    run_id = client.post(
+        "/api/runs", json={"bot": "scripted", "mode": "headless"}
+    ).json()["run_id"]
+    wait_for_status(session_factory, run_id, TERMINAL)
+    stats = client.get("/api/stats").json()
+    assert stats.get("SUCCESS", 0) >= 1
+
+
+def test_runs_listing_filters(client, session_factory, scripted_bot):
+    client.post("/api/runs", json={"bot": "scripted", "mode": "headless"})
+    wait_for_status(session_factory,
+                    client.get("/api/runs").json()[0]["id"], TERMINAL)
+    rows = client.get("/api/runs", params={"bot": "scripted"}).json()
+    assert rows and all(r["bot"] == "scripted" for r in rows)
+    rows = client.get("/api/runs", params={"status": "SUCCESS"}).json()
+    assert all(r["status"] == "SUCCESS" for r in rows)
+
+
+def test_history_survives_engine_restart(engine, session_factory, runner, scripted_bot):
+    """Data persistence: a fresh session over the SAME database keeps history."""
+    run_id = runner.start_run("scripted", "headless", {"username": "u", "password": "p"})
+    wait_for_status(session_factory, run_id, TERMINAL)
+
+    fresh_factory = make_session_factory(engine)  # "restarted" process
+    with fresh_factory() as session:
+        run = session.get(Run, run_id)
+        assert run is not None
+        assert run.status == "SUCCESS"
+        assert run.challenge_id == "ch-scripted-1"

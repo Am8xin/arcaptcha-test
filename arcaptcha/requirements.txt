@@ -1,6 +1,0 @@
-numpy>=2.0
-opencv-python>=4.10
-selenium>=4.25
-requests>=2.32
-loguru>=0.7
-undetected-chromedriver>=3.5.5

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Run history &middot; ARCaptcha Bot Platform{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Run history</h1>
+  <p>Every run is persisted &mdash; including failed and blocked attempts &mdash; and survives restarts.</p>
+</section>
+
+<section class="filters">
+  <select id="filter-bot"><option value="">All bots</option></select>
+  <select id="filter-status">
+    <option value="">All statuses</option>
+    <option>SUCCESS</option><option>FAILED</option><option>BLOCKED</option>
+    <option>TIMEOUT</option><option>CANCELLED</option><option>RUNNING</option><option>PENDING</option>
+  </select>
+  <span class="spacer"></span>
+  <span class="muted" id="runs-count"></span>
+</section>
+
+<section class="table-wrap">
+  <table class="runs-table" id="runs-table">
+    <thead>
+      <tr>
+        <th>Run ID</th><th>Bot</th><th>Mode</th><th>Status</th>
+        <th>Started</th><th>Duration</th><th>challenge_id</th><th>Error</th>
+      </tr>
+    </thead>
+    <tbody><tr><td colspan="8" class="loading">Loading&hellip;</td></tr></tbody>
+  </table>
+</section>
+{% endblock %}

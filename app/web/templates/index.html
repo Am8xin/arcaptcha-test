@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Bots &middot; ARCaptcha Bot Platform{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Available bots</h1>
+  <p>Choose a bot, pick the browser mode for this run, fill the configuration and launch it.
+     Run history keeps every attempt &mdash; successful, failed or blocked.</p>
+</section>
+
+<section id="bots" class="bot-grid"><div class="loading">Loading bots&hellip;</div></section>
+
+<dialog id="launch-dialog" class="dialog">
+  <form method="dialog" class="dialog-form" id="launch-form">
+    <h2 id="launch-title">Launch bot</h2>
+    <p class="muted" id="launch-desc"></p>
+
+    <label class="field-label">Browser mode</label>
+    <div class="mode-row">
+      <label class="mode-card">
+        <input type="radio" name="mode" value="headless" checked>
+        <span class="mode-name">Headless</span>
+        <span class="mode-hint">No visible window &middot; fastest &middot; server friendly</span>
+      </label>
+      <label class="mode-card">
+        <input type="radio" name="mode" value="headful">
+        <span class="mode-name">Headful</span>
+        <span class="mode-hint">Visible browser &middot; watch it live (VNC on servers)</span>
+      </label>
+    </div>
+
+    <div id="launch-fields"></div>
+
+    <div class="dialog-actions">
+      <button type="button" class="btn ghost" id="launch-cancel">Cancel</button>
+      <button type="submit" class="btn primary" id="launch-submit">Launch run</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast hidden"></div>
+{% endblock %}

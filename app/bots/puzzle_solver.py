@@ -1,4 +1,9 @@
-"""Locate the gap of an ARCcaptcha puzzle from its background and piece images."""
+"""Locate the gap of an ARCcaptcha slider puzzle (OpenCV).
+
+Adapted from the original prototype: the piece outline (from its alpha
+channel) is matched against the edges of the background image using a
+distance transform, restricted to the piece's current row for speed.
+"""
 
 from typing import NamedTuple
 

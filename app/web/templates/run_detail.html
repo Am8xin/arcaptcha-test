@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Run {{ run_id }} &middot; ARCaptcha Bot Platform{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Run <code id="run-id-short">{{ run_id[:8] }}</code>
+      <span id="run-status" class="badge">?</span></h1>
+  <p><a class="muted" href="/runs">&larr; back to history</a></p>
+</section>
+
+<section class="detail-grid">
+  <div class="card">
+    <h2>Run details</h2>
+    <table class="kv" id="run-kv"><tbody></tbody></table>
+    <div class="actions" id="run-actions"></div>
+  </div>
+  <div class="card">
+    <h2>Verification details</h2>
+    <table class="kv" id="run-details"><tbody></tbody></table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Live log</h2>
+  <pre class="log" id="run-log">Loading&hellip;</pre>
+</section>
+{% endblock %}

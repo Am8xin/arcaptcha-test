@@ -1,0 +1,29 @@
+Batch C — stealth engine (undetected-chromedriver), 8 headless runs, after stale-element fixes
+==============================================================================================
+
+run  1: mode=headless status=BLOCKED  challenge_id=474f7586-f903-41c7-9183-5573bc15cff9 duration=26.9s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  2: mode=headless status=BLOCKED  challenge_id=6fcbda13-dc1c-4ba6-a0c3-2bdd8a9c14ef duration=25.0s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  3: mode=headless status=BLOCKED  challenge_id=6704d5f4-5156-49cb-8bd7-2991323bd08d duration=24.4s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  4: mode=headless status=BLOCKED  challenge_id=5eb8cfb3-7e53-4a22-bca4-14b4ea4adbbb duration=24.8s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  5: mode=headless status=BLOCKED  challenge_id=6d5a4d13-d4a1-497e-95ac-20149a682ec8 duration=26.5s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  6: mode=headless status=BLOCKED  challenge_id=59f55712-08a7-462f-a904-0bc66acefcf8 duration=24.3s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  7: mode=headless status=FAILED   challenge_id=fa0b2b75-1eb6-4407-baa7-5105606c2360 duration=27.1s
+         error: StaleElementReferenceException: Message: stale element reference: stale element not found in the current frame
+  (Session info: chrome=157.0
+run  8: mode=headless status=BLOCKED  challenge_id=ef0d1037-2f55-49cd-8f25-b1bd2c116150 duration=25.2s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+
+summary: runs=8 success=0 blocked=7 failed/timeout=1 challenge_id_captured=8/8
+
+Environment: Linux x86_64 CI sandbox (datacenter IP), Chrome for Testing 157.0.8103.38,
+chromedriver 157, undetected-chromedriver 3.5.5, headless mode with normalised UA.
+The sandbox IP is hard-flagged by ARCaptcha (explicit widget block message), so the
+success rate from this environment is 0%; these logs demonstrate the required honest
+blocked-run reporting: every blocked run remains visible with its challenge_id and
+error details.

@@ -1,0 +1,32 @@
+name: arcaptcha-platform
+
+services:
+  platform:
+    build: .
+    image: arcaptcha-platform:latest
+    container_name: arcaptcha-platform
+    ports:
+      - "8000:8000"   # web UI + REST API
+      - "7900:7900"   # noVNC (only active with START_VNC=true)
+    env_file:
+      - .env
+    environment:
+      # Keep run history on the volume so it survives container restarts.
+      DATABASE_URL: sqlite:////data/arcaptcha.db
+      DATA_DIR: /data
+      # Set START_VNC=true in .env to watch headful runs in your browser.
+      START_VNC: ${START_VNC:-false}
+    volumes:
+      - run_history:/data
+    # Chromium tab crashes with small /dev/shm; give it room.
+    shm_size: "1gb"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/healthz', timeout=5).raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  run_history:

@@ -1,0 +1,22 @@
+Batch B — plain Selenium engine (baseline), 5 headless runs
+===========================================================
+
+run  1: mode=headless status=BLOCKED  challenge_id=8cb69c1d-fcd0-4126-a87d-6f8a89e24fd4 duration=27.2s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  2: mode=headless status=BLOCKED  challenge_id=e3558449-c105-4d00-924a-8aa639201698 duration=26.2s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  3: mode=headless status=BLOCKED  challenge_id=7dd82265-7f25-487e-9081-c2eea197550e duration=24.4s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  4: mode=headless status=BLOCKED  challenge_id=4eee588e-8785-4529-84ee-c9b4b1417737 duration=26.1s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  5: mode=headless status=BLOCKED  challenge_id=05d2203d-6cf4-4cb6-a7d8-02cfd0070d41 duration=24.6s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+
+summary: runs=5 success=0 blocked=5 failed/timeout=0 challenge_id_captured=5/5
+
+Environment: Linux x86_64 CI sandbox (datacenter IP), Chrome for Testing 157.0.8103.38,
+chromedriver 157, undetected-chromedriver 3.5.5, headless mode with normalised UA.
+The sandbox IP is hard-flagged by ARCaptcha (explicit widget block message), so the
+success rate from this environment is 0%; these logs demonstrate the required honest
+blocked-run reporting: every blocked run remains visible with its challenge_id and
+error details.

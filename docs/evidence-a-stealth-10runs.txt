@@ -1,0 +1,33 @@
+Batch A — stealth engine, 10 headless runs (first batch; exposed a stale-element bug, since fixed)
+==================================================================================================
+
+run  1: mode=headless status=BLOCKED  challenge_id=c0a999ff-ca9a-434b-9fde-c59417662fd9 duration=25.7s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  2: mode=headless status=FAILED   challenge_id=02f3a968-43c1-42a7-ba98-8a4cc6241f26 duration=18.4s
+         error: StaleElementReferenceException: Message: stale element reference: stale element not found in the current frame
+  (Session info: chrome=157.0
+run  3: mode=headless status=BLOCKED  challenge_id=936756db-d526-43d4-a1f5-bca6ee2f8091 duration=23.8s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  4: mode=headless status=BLOCKED  challenge_id=6438a9eb-f579-44b6-bd54-c6079fe0723c duration=25.9s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  5: mode=headless status=BLOCKED  challenge_id=168313ea-ddfa-48ca-9754-a28e09a6f427 duration=26.2s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  6: mode=headless status=BLOCKED  challenge_id=787be02b-7627-46e3-b08e-3b87d36be4d8 duration=25.5s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  7: mode=headless status=BLOCKED  challenge_id=64c7f5c2-4b9b-42f0-b2d0-88720770964b duration=24.5s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  8: mode=headless status=BLOCKED  challenge_id=ec23436e-eb97-41f0-affa-db21d760702d duration=25.1s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run  9: mode=headless status=BLOCKED  challenge_id=2554b60f-6c46-4c8c-93db-4579499945ea duration=25.8s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+run 10: mode=headless status=BLOCKED  challenge_id=688ff5b7-5dde-43b6-b7ff-23e7067db6b6 duration=23.5s
+         error: CAPTCHA widget explicitly blocked the run ('Blocked! Are you robot?' message visible)
+
+summary: runs=10 success=0 blocked=9 failed/timeout=1 challenge_id_captured=10/10
+
+Environment: Linux x86_64 CI sandbox (datacenter IP), Chrome for Testing 157.0.8103.38,
+chromedriver 157, undetected-chromedriver 3.5.5, headless mode with normalised UA.
+The sandbox IP is hard-flagged by ARCaptcha (explicit widget block message), so the
+success rate from this environment is 0%; these logs demonstrate the required honest
+blocked-run reporting: every blocked run remains visible with its challenge_id and
+error details.

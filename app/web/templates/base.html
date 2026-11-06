@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ARCaptcha Bot Platform{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body data-page="{{ page }}">
+<header class="topbar">
+  <a class="brand" href="/">
+    <span class="brand-mark">ARC</span>
+    <span>Browser Bot Platform</span>
+  </a>
+  <nav>
+    <a href="/" class="{{ 'active' if page == 'bots' }}">Bots</a>
+    <a href="/runs" class="{{ 'active' if page in ('runs', 'run') }}">Run history</a>
+  </nav>
+  <div class="topbar-stats" id="global-stats"></div>
+</header>
+<main>
+  {% block content %}{% endblock %}
+</main>
+<footer class="foot">
+  <span>Extensible browser-bot platform &middot; Selenium-first &middot; Docker-ready</span>
+</footer>
+<script src="/static/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
