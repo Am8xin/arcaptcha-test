@@ -80,6 +80,8 @@ a.muted { color: var(--muted); }
 .btn.primary { background: var(--accent); color: white; }
 .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
 .btn.danger { background: var(--red-soft); color: var(--red); border: 1px solid var(--red); }
+.btn.small { padding: 7px 12px; font-size: 13px; }
+.hidden { display: none !important; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 
 /* ---------- dialog ---------- */
@@ -106,6 +108,16 @@ a.muted { color: var(--muted); }
 }
 .cfg-input:focus { outline: none; border-color: var(--accent); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+
+/* credentials table (launch dialog) */
+.cred-row { display: grid; grid-template-columns: 1fr 1fr 36px; gap: 8px; margin-bottom: 8px; }
+.cred-row .cfg-input { margin-top: 0; }
+.cred-remove {
+  background: transparent; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 9px; font-size: 17px; line-height: 1; cursor: pointer;
+}
+.cred-remove:hover { color: var(--red); border-color: var(--red); }
+#cred-add { margin-top: 2px; }
 
 /* ---------- filters / table ---------- */
 .filters { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
@@ -174,4 +186,5 @@ a.muted { color: var(--muted); }
   .detail-grid { grid-template-columns: 1fr; }
   .mode-row { grid-template-columns: 1fr; }
   .topbar-stats { display: none; }
+  .cred-row { grid-template-columns: 1fr 1fr 32px; }
 }

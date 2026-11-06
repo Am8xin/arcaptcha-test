@@ -59,10 +59,48 @@ function fieldInput(field) {
     ${input}<span class="mode-hint">${esc(field.help)}</span></label>`;
 }
 
+/* ---------- credentials table (launch dialog) ---------- */
+const CRED_FIELD_NAMES = new Set(["username", "password"]);
+
+function addCredRow() {
+  const row = document.createElement("div");
+  row.className = "cred-row";
+  row.innerHTML = `
+    <input class="cfg-input" type="text" placeholder="username" data-cred="username" autocomplete="off">
+    <input class="cfg-input" type="password" placeholder="password" data-cred="password" autocomplete="new-password">
+    <button type="button" class="cred-remove" title="Remove this pair">&times;</button>`;
+  row.querySelector(".cred-remove").addEventListener("click", () => {
+    row.remove();
+    if (!$("#cred-rows").children.length) addCredRow();  // always keep one row
+  });
+  $("#cred-rows").appendChild(row);
+}
+
+function collectCredentials() {
+  const rows = $$("#cred-rows .cred-row");
+  const pairs = rows.map((row) => ({
+    username: row.querySelector('[data-cred="username"]').value.trim(),
+    password: row.querySelector('[data-cred="password"]').value.trim(),
+  }));
+  const partial = rows.find((_, i) =>
+    (pairs[i].username ? 1 : 0) + (pairs[i].password ? 1 : 0) === 1);
+  if (partial) {
+    return { error: "Each pair needs both a username and a password — " +
+                    "or clear the row to use the bot defaults." };
+  }
+  return { pairs: pairs.filter((p) => p.username || p.password) };
+}
+
 function openLaunchDialog(bot) {
   $("#launch-title").textContent = `Launch: ${bot.title}`;
   $("#launch-desc").textContent = bot.description;
-  $("#launch-fields").innerHTML = bot.config_fields.map(fieldInput).join("");
+  const credCapable = bot.config_fields.some((f) => CRED_FIELD_NAMES.has(f.name));
+  $("#credentials-section").classList.toggle("hidden", !credCapable);
+  $("#launch-fields").innerHTML = bot.config_fields
+    .filter((f) => !(credCapable && CRED_FIELD_NAMES.has(f.name)))
+    .map(fieldInput).join("");
+  $("#cred-rows").innerHTML = "";
+  if (credCapable) addCredRow();
   const dialog = $("#launch-dialog");
   dialog.dataset.bot = bot.name;
   dialog.showModal();
@@ -76,13 +114,16 @@ async function submitLaunch(event) {
   const repeat = Math.max(1, Math.min(50, parseInt(form.elements.repeat.value, 10) || 1));
   const config = {};
   $$("#launch-fields input", form).forEach((el) => { config[el.name] = el.value; });
+  const creds = collectCredentials();
+  if (creds.error) { toast(creds.error, true); return; }
   const button = $("#launch-submit");
   button.disabled = true;
   try {
     const res = await api("/api/runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bot: dialog.dataset.bot, mode, config, repeat }),
+      body: JSON.stringify({ bot: dialog.dataset.bot, mode, config, repeat,
+                             credentials: creds.pairs }),
     });
     dialog.close();
     const ids = res.run_ids && res.run_ids.length ? res.run_ids : [res.run_id];
@@ -243,6 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadBots().catch((e) => toast(e.message, true));
     $("#launch-cancel").addEventListener("click", () => $("#launch-dialog").close());
     $("#launch-form").addEventListener("submit", submitLaunch);
+    $("#cred-add").addEventListener("click", () => addCredRow());
   } else if (page === "runs") {
     $("#filter-bot").addEventListener("change", loadRuns);
     $("#filter-status").addEventListener("change", loadRuns);

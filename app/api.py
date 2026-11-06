@@ -18,6 +18,13 @@ from .db import count_by_status
 router = APIRouter(prefix="/api")
 
 
+class CredentialPair(BaseModel):
+    """One username/password row of the credentials table."""
+
+    username: str = ""
+    password: str = ""
+
+
 class LaunchRequest(BaseModel):
     bot: str
     mode: str = Field(description="headless or headful")
@@ -27,6 +34,15 @@ class LaunchRequest(BaseModel):
         ge=1,
         le=50,
         description="Launch the bot this many times instead of once (each run gets its own record)",
+    )
+    credentials: list[CredentialPair] = Field(
+        default_factory=list,
+        max_length=50,
+        description=(
+            "Optional username/password pairs. Run i uses "
+            "credentials[i % len(credentials)]: when there are more runs than "
+            "pairs, the pairs repeat in order. Empty list = use the bot defaults."
+        ),
     )
 
 
@@ -62,10 +78,24 @@ def list_bots() -> list[dict]:
 @router.post("/runs", status_code=HTTPStatus.ACCEPTED)
 def launch_run(payload: LaunchRequest, request: Request):
     runner = request.app.state.runner
+    # Drop fully-empty rows (the UI leaves one blank row by default).
+    credentials = [
+        pair
+        for pair in payload.credentials
+        if pair.username.strip() or pair.password.strip()
+    ]
     run_ids: list[str] = []
     try:
-        for _ in range(payload.repeat):
-            run_ids.append(runner.start_run(payload.bot, payload.mode, payload.config))
+        for index in range(payload.repeat):
+            config = payload.config
+            if credentials:
+                pair = credentials[index % len(credentials)]
+                config = {
+                    **payload.config,
+                    "username": pair.username.strip(),
+                    "password": pair.password.strip(),
+                }
+            run_ids.append(runner.start_run(payload.bot, payload.mode, config))
     except registry.UnknownBot as exc:
         raise HTTPException(HTTPStatus.NOT_FOUND, str(exc)) from exc
     except ValueError as exc:

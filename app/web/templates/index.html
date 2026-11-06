@@ -30,6 +30,16 @@
 
     <div id="launch-fields"></div>
 
+    <div id="credentials-section" class="creds-section hidden">
+      <label class="field-label">Credentials
+        <span class="mode-hint">One username / password pair per row &mdash; each run takes the
+          next pair (pairs repeat when there are more runs than rows).
+          Leave empty to use the bot defaults.</span>
+      </label>
+      <div id="cred-rows"></div>
+      <button type="button" class="btn ghost small" id="cred-add">+ Add pair</button>
+    </div>
+
     <label class="field-label" for="launch-repeat">Number of runs
       <input class="cfg-input" type="number" id="launch-repeat" name="repeat"
              min="1" max="50" step="1" value="1">

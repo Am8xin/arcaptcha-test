@@ -88,6 +88,86 @@ def test_launch_repeat_out_of_range_422(client, scripted_bot):
         assert response.status_code == 422
 
 
+def test_launch_credentials_cycle_across_runs(client, session_factory, scripted_bot):
+    """Run i uses credentials[i % len(credentials)]; passwords stay masked."""
+    response = client.post(
+        "/api/runs",
+        json={
+            "bot": "scripted",
+            "mode": "headless",
+            "repeat": 5,
+            "credentials": [
+                {"username": "alice", "password": "pw-a"},
+                {"username": "bob", "password": "pw-b"},
+            ],
+        },
+    )
+    assert response.status_code == 202
+    run_ids = response.json()["run_ids"]
+    assert len(run_ids) == 5
+
+    expected_usernames = ["alice", "bob", "alice", "bob", "alice"]
+    for run_id, username in zip(run_ids, expected_usernames):
+        wait_for_status(session_factory, run_id, TERMINAL)
+        detail = client.get(f"/api/runs/{run_id}").json()
+        assert detail["config"]["username"] == username
+        assert detail["config"]["password"] == "********"  # masked in history
+
+
+def test_launch_credentials_empty_list_uses_defaults(client, scripted_bot):
+    body = client.post(
+        "/api/runs",
+        json={"bot": "scripted", "mode": "headless", "credentials": []},
+    ).json()
+    detail = client.get(f"/api/runs/{body['run_id']}").json()
+    assert detail["config"]["username"] == "demo"  # bot default still applies
+
+
+def test_launch_credentials_blank_rows_are_dropped(client, scripted_bot):
+    response = client.post(
+        "/api/runs",
+        json={
+            "bot": "scripted",
+            "mode": "headless",
+            "credentials": [
+                {"username": "", "password": ""},
+                {"username": "alice", "password": "pw"},
+            ],
+        },
+    )
+    assert response.status_code == 202
+    detail = client.get(f"/api/runs/{response.json()['run_id']}").json()
+    assert detail["config"]["username"] == "alice"
+
+
+def test_launch_credentials_partial_pair_fills_from_defaults(client, scripted_bot):
+    """username-only pair: the password falls back to the bot default."""
+    response = client.post(
+        "/api/runs",
+        json={
+            "bot": "scripted",
+            "mode": "headless",
+            "credentials": [{"username": "alice", "password": ""}],
+        },
+    )
+    assert response.status_code == 202
+    detail = client.get(f"/api/runs/{response.json()['run_id']}").json()
+    assert detail["config"]["username"] == "alice"
+    assert detail["config"]["password"] == "********"  # default filled in + masked
+
+
+def test_launch_credentials_more_than_50_422(client, scripted_bot):
+    response = client.post(
+        "/api/runs",
+        json={
+            "bot": "scripted",
+            "mode": "headless",
+            "credentials": [{"username": f"u{i}", "password": "p"} for i in range(51)],
+        },
+    )
+    assert response.status_code == 422
+
+
 def test_launch_invalid_mode_422(client, scripted_bot):
     response = client.post("/api/runs", json={"bot": "scripted", "mode": "stealth"})
     assert response.status_code == 422
