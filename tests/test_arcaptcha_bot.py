@@ -79,6 +79,23 @@ def test_pass_without_puzzle_is_success(fast_bot):
     assert result.details["verified"] is True
 
 
+def test_widget_wipes_credentials_before_submit(fast_bot):
+    """The widget's re-render on token arrival can wipe the login form.
+
+    Observed live: /api/login answered HTTP 400 'Please fill username and
+    password' although the bot had typed the credentials. The bot must
+    notice and re-type before/while submitting.
+    """
+    result, driver = run_bot("wipe_credentials", fast_bot)
+
+    assert result.status == "SUCCESS", result.error
+    assert result.details["login_http_status"] == 200
+    assert result.details["verified"] is True
+    # the form was indeed wiped and the bot recovered
+    assert driver.site.email_el is not None
+    assert driver.site.login_calls >= 1
+
+
 def test_missing_challenge_id_fails(fast_bot):
     """Puzzle appears but the widget never issues a challenge id -> FAILED."""
     result, driver = run_bot("missing_challenge_id", fast_bot)

@@ -38,6 +38,7 @@ import cv2
 import numpy as np
 import requests
 from selenium.common.exceptions import (
+    NoSuchElementException,
     StaleElementReferenceException,
     TimeoutException,
     WebDriverException,
@@ -528,7 +529,9 @@ class ArcaptchaDemoBot(Bot):
             _sleep(WAIT_AFTER_SOLVE)
 
             ctx.log("Submitting the login form")
-            verification = self._submit_and_verify(driver, watcher)
+            verification = self._submit_and_verify(
+                driver, watcher, ctx, username, password
+            )
             details.update(verification["details"])
             if not verification["ok"]:
                 return BotResult(
@@ -726,8 +729,9 @@ class ArcaptchaDemoBot(Bot):
         except StaleElementReferenceException:
             return ""
 
-    def _submit_and_verify(self, driver, watcher) -> dict:
+    def _submit_and_verify(self, driver, watcher, ctx, username: str, password: str) -> dict:
         params = watcher.wait_for_login_response(0.01)  # drain leftovers first
+        self._ensure_credentials(driver, username, password, ctx)
         human_click(driver, driver.find_element(By.CSS_SELECTOR, LOGIN_BUTTON))
         params = watcher.wait_for_login_response(LOGIN_RESPONSE_TIMEOUT)
 
@@ -748,14 +752,26 @@ class ArcaptchaDemoBot(Bot):
         details["login_http_status"] = status
         details["login_response"] = body[:200]
 
-        body_l = (body or "").lower()
-        success_msg = (
-            "logged in successfully" in body_l
-            or '"success": true' in body_l.replace(" ", " ")
-            or "'success': true" in body_l
-        )
-        if status and 200 <= status < 300 and success_msg:
+        if self._login_accepted(status, body):
             return {"ok": True, "details": details, "error": None}
+
+        # Observed live: the widget re-renders the login form when the token
+        # lands, wiping the typed credentials -> HTTP 400 "Please fill
+        # username and password". Re-type once and submit again.
+        body_l = (body or "").lower()
+        if status == 400 and "fill username" in body_l:
+            ctx.log("Login rejected with empty credentials; re-typing and retrying once")
+            self._ensure_credentials(driver, username, password, ctx)
+            human_click(driver, driver.find_element(By.CSS_SELECTOR, LOGIN_BUTTON))
+            params = watcher.wait_for_login_response(LOGIN_RESPONSE_TIMEOUT)
+            if params is not None:
+                status = params.get("response", {}).get("status")
+                body = read_login_response_body(driver, params.get("requestId"))
+                details["login_http_status"] = status
+                details["login_response"] = body[:200]
+                if self._login_accepted(status, body):
+                    return {"ok": True, "details": details, "error": None}
+
         return {
             "ok": False,
             "details": details,
@@ -764,3 +780,44 @@ class ArcaptchaDemoBot(Bot):
                 f"{status}: {body[:150]}"
             ),
         }
+
+    @staticmethod
+    def _login_accepted(status, body: str) -> bool:
+        """True only when the HTTP status is 2xx AND the body says success."""
+        body_l = (body or "").lower()
+        success_msg = (
+            "logged in successfully" in body_l
+            or '"success": true' in body_l.replace(" ", " ")
+            or "'success': true" in body_l
+        )
+        return bool(status and 200 <= status < 300 and success_msg)
+
+    @staticmethod
+    def _ensure_credentials(driver, username: str, password: str, ctx=None) -> None:
+        """Re-type any credential the form lost.
+
+        The widget re-renders the page when the challenge token lands; typed
+        values can disappear silently, and submitting an empty form answers
+        HTTP 400 'Please fill username and password'. Filling only what is
+        actually missing keeps the common path untouched.
+        """
+        try:
+            email = driver.find_element(By.CSS_SELECTOR, EMAIL_INPUT)
+            pwd = driver.find_element(By.CSS_SELECTOR, PASSWORD_INPUT)
+        except (NoSuchElementException, StaleElementReferenceException, WebDriverException):
+            return
+        retyped: list[str] = []
+        try:
+            if (email.get_attribute("value") or "") != username:
+                retyped.append("username")
+                human_type(email, username)
+            if (pwd.get_attribute("value") or "") != password:
+                retyped.append("password")
+                human_type(pwd, password)
+        except (StaleElementReferenceException, WebDriverException):
+            return
+        if retyped and ctx is not None:
+            ctx.log(
+                "Re-typed " + "+".join(retyped)
+                + " (the form was re-rendered while the token landed)"
+            )

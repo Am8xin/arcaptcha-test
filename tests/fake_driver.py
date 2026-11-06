@@ -18,6 +18,7 @@ import uuid
 
 import cv2
 import numpy as np
+from selenium.webdriver.common.keys import Keys
 
 # ---------------------------------------------------------------- geometry ---
 # Screen layout (matches the selector map of the demo page):
@@ -71,19 +72,29 @@ class FakeElement:
         self.attrs = attrs or {}
         self.natural_width = natural_width
         self.typed = []
+        self.value = str(self.attrs.get("value") or "")
 
     # selenium element API used by the bot
     def is_displayed(self):
         return True
 
     def get_attribute(self, name):
+        if name == "value":
+            return self.value
         return self.attrs.get(name)
 
     def click(self):
         pass
 
     def send_keys(self, *keys):
-        self.typed.extend(k for k in keys if hasattr(k, "upper") or k is not None)
+        for key in keys:
+            self.typed.append(key)
+            if key == Keys.BACKSPACE:
+                self.value = ""
+            elif key in (Keys.CONTROL, Keys.COMMAND, Keys.SHIFT, Keys.ALT):
+                pass  # modifiers do not change the value on their own
+            elif hasattr(key, "upper"):
+                self.value += str(key)
 
 
 class FakeSite:
@@ -118,6 +129,10 @@ class FakeSite:
 
         self.login_calls = 0
         self.load_count = 0
+
+        # persistent form elements so typed values survive between lookups
+        self.email_el: FakeElement | None = None
+        self.password_el: FakeElement | None = None
 
     # -- performance log helpers ---------------------------------------------
     def _next_rid(self) -> str:
@@ -195,10 +210,31 @@ class FakeSite:
             self.puzzle_visible = False
             self.checked_visible = True
             self.token = "tok-solved"
+            # wipe_credentials: the widget's re-render on token arrival wipes
+            # the login form (observed live on demo.arcaptcha.co).
+            if self.scenario == "wipe_credentials":
+                if self.email_el is not None:
+                    self.email_el.value = ""
+                if self.password_el is not None:
+                    self.password_el.value = ""
 
     def on_login_click(self) -> None:
         self.login_calls += 1
         if self.scenario == "no_login_response":
+            return
+        if self.scenario == "wipe_credentials":
+            email = self.email_el.value if self.email_el else ""
+            password = self.password_el.value if self.password_el else ""
+            if not email.strip() or not password.strip():
+                self.push_response(
+                    "https://demo.arcaptcha.co/api/login", 400,
+                    json.dumps({"msg": "Please fill username and password"}),
+                )
+                return
+            self.push_response(
+                "https://demo.arcaptcha.co/api/login", 200,
+                json.dumps({"msg": "You are logged in successfully!"}),
+            )
             return
         if self.scenario == "login_rejected":
             self.push_response(
@@ -271,9 +307,13 @@ class FakeDriver:
         if selector in ("#arc-checkbox", "#input-checkbox"):
             return FakeElement(s, selector, rect=CHECKBOX_RECT)
         if selector == "#email":
-            return FakeElement(s, selector, attrs={"placeholder": "email"})
+            if s.email_el is None:
+                s.email_el = FakeElement(s, selector, attrs={"placeholder": "email"})
+            return s.email_el
         if selector == "#password":
-            return FakeElement(s, selector)
+            if s.password_el is None:
+                s.password_el = FakeElement(s, selector)
+            return s.password_el
         if selector == "form button":
             return FakeElement(s, selector, rect=LOGIN_RECT)
         if selector == "#arcaptcha-token":
