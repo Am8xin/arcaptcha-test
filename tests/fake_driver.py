@@ -107,6 +107,7 @@ class FakeSite:
         self.response_bodies: dict[str, dict] = {}
         self.request_counter = 0
         self.closed = False
+        self.cookies_cleared = 0
 
         # drag bookkeeping
         self.dragging = False
@@ -233,6 +234,9 @@ class FakeDriver:
 
     def get_cookies(self):
         return []
+
+    def delete_all_cookies(self):
+        self.site.cookies_cleared = (self.site.cookies_cleared or 0) + 1
 
     # -- element lookup -----------------------------------------------------------
     def find_element(self, by, selector):

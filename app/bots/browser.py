@@ -14,9 +14,11 @@ Anti-detection measures applied here (see README "Reducing CAPTCHA blocking"):
 
 from __future__ import annotations
 
+import functools
 import logging
 import re
 import subprocess
+import threading
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -24,6 +26,14 @@ from selenium.webdriver.chrome.options import Options
 from ..config import settings
 
 logger = logging.getLogger(__name__)
+
+# Serialise only the *startup* of browser sessions. undetected-chromedriver
+# patches the chromedriver binary on first use; several concurrent creations
+# used to race on that file, re-patch it over and over (adding ~80 s to a run)
+# and sometimes crash, silently falling back to plain Selenium — which shows
+# the "Chrome is being controlled by automated test software" bar and gets
+# detected. The lock keeps runs parallel while startups queue briefly.
+_CREATE_LOCK = threading.Lock()
 
 _STEALTH_JS = """
 Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
@@ -33,8 +43,9 @@ Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
 """
 
 
+@functools.lru_cache(maxsize=8)
 def detect_chrome_major(binary: str | None = None) -> int | None:
-    """Return the major version of a Chrome binary, e.g. 157."""
+    """Return the major version of a Chrome binary, e.g. 157 (cached)."""
     binary = binary or settings.chrome_binary or "google-chrome"
     for candidate in (binary, "google-chrome", "chromium"):
         try:
@@ -67,10 +78,14 @@ def _normalized_user_agent(headless: bool, override: str = "") -> str:
 def build_driver(headless: bool, *, undetected: bool = True) -> webdriver.Chrome:
     """Create a Chrome session with automation fingerprints patched."""
     options = Options()
+    options.page_load_strategy = "eager"  # DOM ready beats every resource
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument(f"--window-size={settings.window_width},{settings.window_height}")
     options.add_argument("--lang=en-US")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--no-first-run")
+    options.add_argument("--no-default-browser-check")
+    options.add_argument("--disable-infobars")
     if settings.chrome_no_sandbox:
         options.add_argument("--no-sandbox")
     if headless:
@@ -93,14 +108,9 @@ def build_driver(headless: bool, *, undetected: bool = True) -> webdriver.Chrome
             logger.warning("undetected-chromedriver not installed; using plain Selenium")
         else:
             try:
-                driver = uc.Chrome(
-                    options=options,
-                    driver_executable_path=settings.chromedriver_path or None,
-                    browser_executable_path=settings.chrome_binary or None,
-                    version_main=detect_chrome_major(),
-                    use_subprocess=True,
-                )
-                driver.set_window_size(settings.window_width, settings.window_height)
+                with _CREATE_LOCK:
+                    driver = _create_uc(uc, options)
+                _finish_driver(driver)
                 return driver
             except Exception as exc:  # pragma: no cover - environment specific
                 logger.warning("undetected-chromedriver failed (%s); falling back", exc)
@@ -109,8 +119,35 @@ def build_driver(headless: bool, *, undetected: bool = True) -> webdriver.Chrome
         service=_service(), options=options
     )
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": _STEALTH_JS})
-    driver.set_window_size(settings.window_width, settings.window_height)
+    _finish_driver(driver)
     return driver
+
+
+def _create_uc(uc_module, options) -> webdriver.Chrome:
+    """Instantiate undetected-chromedriver, retrying once on transient races."""
+    last_exc: Exception | None = None
+    for attempt in (1, 2):
+        try:
+            return uc_module.Chrome(
+                options=options,
+                driver_executable_path=settings.chromedriver_path or None,
+                browser_executable_path=settings.chrome_binary or None,
+                version_main=detect_chrome_major(),
+                use_subprocess=True,
+                # Copy the patched driver per process so parallel runs never
+                # re-patch (or lock) the shared binary.
+                user_multi_procs=True,
+            )
+        except Exception as exc:
+            last_exc = exc
+            logger.warning("uc.Chrome attempt %d failed: %s", attempt, exc)
+    raise last_exc  # type: ignore[misc]
+
+
+def _finish_driver(driver: webdriver.Chrome) -> None:
+    """Apply timeouts and window size common to every driver flavour."""
+    driver.set_page_load_timeout(settings.page_load_timeout)
+    driver.set_window_size(settings.window_width, settings.window_height)
 
 
 def _service() -> webdriver.Chrome.service.Service:

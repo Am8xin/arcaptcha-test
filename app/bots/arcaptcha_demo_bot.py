@@ -617,6 +617,16 @@ class ArcaptchaDemoBot(Bot):
                     f"(attempt {attempt}/{attempts_allowed})"
                 )
                 details["refresh_retries"] = attempt - 1
+                # Start the retry as a *fresh* visitor: drop the session the
+                # widget just flagged, then pause like a human who read the
+                # 'please refresh' message. Retrying instantly with the same
+                # cookies reproduced the same block (same challenge_id) every
+                # time.
+                try:
+                    driver.delete_all_cookies()
+                except Exception:  # driver-specific quirks must not break the retry
+                    pass
+                _sleep(random.uniform(2.5, 5.0))
                 driver.get(URL)
             wait_visible(driver, CHECKBOX, timeout=25)
             if attempt > 1:

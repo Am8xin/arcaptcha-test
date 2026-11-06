@@ -36,10 +36,13 @@ class Settings:
 
     # --- Execution ---------------------------------------------------------
     max_parallel_runs: int = field(
-        default_factory=lambda: int(_env("MAX_PARALLEL_RUNS", "2"))
+        default_factory=lambda: int(_env("MAX_PARALLEL_RUNS", "4"))
     )
     run_timeout_seconds: int = field(
         default_factory=lambda: int(_env("RUN_TIMEOUT_SECONDS", "300")),
+    )
+    page_load_timeout: int = field(
+        default_factory=lambda: int(_env("PAGE_LOAD_TIMEOUT", "30")),
     )
 
     # --- Browser -----------------------------------------------------------

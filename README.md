@@ -125,8 +125,9 @@ credentials live in the source code**. `.env` is git-ignored;
 | --- | --- | --- |
 | `HOST` / `PORT` | `0.0.0.0` / `8000` | HTTP server binding |
 | `DATABASE_URL` | `sqlite:///./arcaptcha.db` | Any SQLAlchemy URL (SQLite file, PostgreSQL, …) |
-| `MAX_PARALLEL_RUNS` | `2` | Runner thread-pool size |
+| `MAX_PARALLEL_RUNS` | `4` | Runner thread-pool size — how many runs execute truly at the same time |
 | `RUN_TIMEOUT_SECONDS` | `300` | Watchdog deadline per run |
+| `PAGE_LOAD_TIMEOUT` | `30` | Chrome page-load deadline (eager strategy: DOM only) |
 | `CHROME_BINARY` | auto-detect | Path to Chrome/Chromium (set inside Docker) |
 | `CHROMEDRIVER_PATH` | auto (Selenium Manager) | Path to chromedriver |
 | `CHROME_NO_SANDBOX` | `false` | Required inside containers |
@@ -316,10 +317,17 @@ The demo bot layers several defences, all reproducible from this repo:
 5. **Randomised pacing** — humanish delays after load, per keystroke and
    between events.
 6. **Respect the widget's advice** — when the widget shows its explicit
-   *"Blocked! … Please refresh the page and try again"* notice, the bot
-   reloads the page and retries (up to `REFRESH_RETRIES = 2`), which clears
-   transient blocks. Every attempt is logged and the final classification
-   stays honest (`BLOCKED`).
+   *"Blocked! … Please refresh the page and try again"* notice, the bot drops
+   the flagged session's cookies, pauses a humanish 2.5–5 s, reloads the page
+   and retries (up to `REFRESH_RETRIES = 2`), which clears transient blocks.
+   Every attempt is logged and the final classification stays honest
+   (`BLOCKED`).
+7. **Parallel-safe stealth** — browser startups are serialised behind a lock
+   and `user_multi_procs=True` gives every parallel run its own patched
+   driver copy. Without this, concurrent startups raced on the shared
+   patched binary, re-patched it for ~80 s per run, and the losers silently
+   fell back to plain Selenium — which shows the *"Chrome is being
+   controlled…"* bar and gets detected immediately.
 
 ### Evidence & reproducibility
 
