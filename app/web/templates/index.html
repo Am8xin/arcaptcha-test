@@ -30,6 +30,13 @@
 
     <div id="launch-fields"></div>
 
+    <label class="field-label" for="launch-repeat">Number of runs
+      <input class="cfg-input" type="number" id="launch-repeat" name="repeat"
+             min="1" max="50" step="1" value="1">
+      <span class="mode-hint">Launch the bot this many times instead of once (1&ndash;50);
+        each attempt gets its own record in the history</span>
+    </label>
+
     <div class="dialog-actions">
       <button type="button" class="btn ghost" id="launch-cancel">Cancel</button>
       <button type="submit" class="btn primary" id="launch-submit">Launch run</button>

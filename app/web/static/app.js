@@ -73,6 +73,7 @@ async function submitLaunch(event) {
   const dialog = $("#launch-dialog");
   const form = $("#launch-form");
   const mode = form.elements.mode.value;
+  const repeat = Math.max(1, Math.min(50, parseInt(form.elements.repeat.value, 10) || 1));
   const config = {};
   $$("#launch-fields input", form).forEach((el) => { config[el.name] = el.value; });
   const button = $("#launch-submit");
@@ -81,11 +82,18 @@ async function submitLaunch(event) {
     const res = await api("/api/runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bot: dialog.dataset.bot, mode, config }),
+      body: JSON.stringify({ bot: dialog.dataset.bot, mode, config, repeat }),
     });
     dialog.close();
-    toast(`Run launched: ${res.run_id.slice(0, 8)} — open history to follow it`);
-    setTimeout(() => { window.location.href = `/runs/${res.run_id}`; }, 700);
+    const ids = res.run_ids && res.run_ids.length ? res.run_ids : [res.run_id];
+    const first = ids[0];
+    if (ids.length > 1) {
+      toast(`${ids.length} runs launched — check the history page to follow them`);
+      setTimeout(() => { window.location.href = "/runs"; }, 700);
+    } else {
+      toast(`Run launched: ${first.slice(0, 8)} — open history to follow it`);
+      setTimeout(() => { window.location.href = `/runs/${first}`; }, 700);
+    }
   } catch (err) {
     toast(`Launch failed: ${err.message}`, true);
   } finally {

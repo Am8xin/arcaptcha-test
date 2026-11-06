@@ -22,6 +22,12 @@ class LaunchRequest(BaseModel):
     bot: str
     mode: str = Field(description="headless or headful")
     config: dict[str, str] = Field(default_factory=dict)
+    repeat: int = Field(
+        default=1,
+        ge=1,
+        le=50,
+        description="Launch the bot this many times instead of once (each run gets its own record)",
+    )
 
 
 class CancelResponse(BaseModel):
@@ -56,13 +62,19 @@ def list_bots() -> list[dict]:
 @router.post("/runs", status_code=HTTPStatus.ACCEPTED)
 def launch_run(payload: LaunchRequest, request: Request):
     runner = request.app.state.runner
+    run_ids: list[str] = []
     try:
-        run_id = runner.start_run(payload.bot, payload.mode, payload.config)
+        for _ in range(payload.repeat):
+            run_ids.append(runner.start_run(payload.bot, payload.mode, payload.config))
     except registry.UnknownBot as exc:
         raise HTTPException(HTTPStatus.NOT_FOUND, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
-    return {"run_id": run_id, "status": "PENDING"}
+    return {
+        "run_id": run_ids[0],  # backward compatible: first of the batch
+        "run_ids": run_ids,
+        "status": "PENDING",
+    }
 
 
 @router.get("/runs")

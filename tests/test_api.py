@@ -57,6 +57,37 @@ def test_launch_unknown_bot_404(client):
     assert client.post("/api/runs", json={"bot": "ghost", "mode": "headless"}).status_code == 404
 
 
+def test_launch_repeat_creates_multiple_runs(client, session_factory, scripted_bot):
+    """repeat=N launches N independent runs from a single API call."""
+    response = client.post(
+        "/api/runs",
+        json={"bot": "scripted", "mode": "headless", "config": {}, "repeat": 3},
+    )
+    assert response.status_code == 202
+    body = response.json()
+    assert len(body["run_ids"]) == 3
+    assert body["run_id"] == body["run_ids"][0]  # backward-compatible field
+
+    for run_id in body["run_ids"]:
+        run = wait_for_status(session_factory, run_id, TERMINAL)
+        assert run.status == "SUCCESS"
+    listed = {r["id"] for r in client.get("/api/runs", params={"bot": "scripted"}).json()}
+    assert set(body["run_ids"]) <= listed
+
+
+def test_launch_repeat_defaults_to_one(client, scripted_bot):
+    body = client.post("/api/runs", json={"bot": "scripted", "mode": "headless"}).json()
+    assert len(body["run_ids"]) == 1
+
+
+def test_launch_repeat_out_of_range_422(client, scripted_bot):
+    for bad in (0, 51):
+        response = client.post(
+            "/api/runs", json={"bot": "scripted", "mode": "headless", "repeat": bad}
+        )
+        assert response.status_code == 422
+
+
 def test_launch_invalid_mode_422(client, scripted_bot):
     response = client.post("/api/runs", json={"bot": "scripted", "mode": "stealth"})
     assert response.status_code == 422

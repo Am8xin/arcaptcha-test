@@ -144,7 +144,9 @@ stored **masked** in the history.
    engine. Click **Launch run**.
 2. In the dialog choose the browser mode **before each run**
    (Headless / Headful), edit the configuration fields (username/password)
-   and confirm.
+   and set **Number of runs** (1–50) to launch the bot several times from a
+   single click — each attempt gets its own independent record in the
+   history. Confirm to start.
 3. You are taken to the **run detail** page: live status badge, verification
    details and the **live log** (auto-refreshes while the run is active).
    Active runs show a **Cancel run** button.
@@ -159,7 +161,7 @@ The UI is a thin client of the same REST API (`/docs` has the OpenAPI UI):
 | Method & path | Purpose |
 | --- | --- |
 | `GET /api/bots` | List registered bots + their config fields |
-| `POST /api/runs` | Launch: `{"bot": "arcaptcha-demo", "mode": "headless", "config": {}}` → `202 {"run_id": …}` |
+| `POST /api/runs` | Launch: `{"bot": "arcaptcha-demo", "mode": "headless", "config": {}, "repeat": 1}` → `202 {"run_id": …, "run_ids": […]}`. `repeat` (1–50, default 1) queues that many independent runs; `run_id` is the first of them |
 | `GET /api/runs?limit=&bot=&status=` | Run history (newest first) |
 | `GET /api/runs/{id}` | Full run detail incl. log lines |
 | `POST /api/runs/{id}/cancel` | Request cancellation (`202`; `409` if finished) |
