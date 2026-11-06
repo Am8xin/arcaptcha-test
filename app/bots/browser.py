@@ -88,10 +88,15 @@ def build_driver(headless: bool, *, undetected: bool = True) -> webdriver.Chrome
     options.add_argument("--disable-infobars")
     if settings.chrome_no_sandbox:
         options.add_argument("--no-sandbox")
+    # Normalised UA in headless mode AND whenever the distro Chromium is
+    # used (Docker): its real UA advertises "Chromium/…" instead of
+    # "Chrome/…", an easy fingerprint flag. A real desktop Chrome keeps
+    # its own UA in headful mode.
+    distro_chromium = str(settings.chrome_binary or "").endswith("chromium")
     if headless:
         options.add_argument("--headless=new")
-        # Keep the UA identical between headless and headful runs.
-        options.add_argument(f"--user-agent={_normalized_user_agent(headless=True)}")
+    if headless or distro_chromium:
+        options.add_argument(f"--user-agent={_normalized_user_agent(headless)}")
 
     if settings.chrome_binary:
         options.binary_location = settings.chrome_binary

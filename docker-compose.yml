@@ -2,31 +2,58 @@ name: arcaptcha-platform
 
 services:
   platform:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+
     image: arcaptcha-platform:latest
     container_name: arcaptcha-platform
+
     ports:
-      - "8000:8000"   # web UI + REST API
-      - "7900:7900"   # noVNC (only active with START_VNC=true)
-    env_file:
-      - .env
+      - "8000:8000"
+      - "7900:7900"
+
     environment:
-      # Keep run history on the volume so it survives container restarts.
+      PYTHONUNBUFFERED: "1"
+
       DATABASE_URL: sqlite:////data/arcaptcha.db
       DATA_DIR: /data
-      # Set START_VNC=true in .env to watch headful runs in your browser.
+
+      CHROME_BINARY: /usr/bin/chromium
+      CHROMEDRIVER_PATH: /usr/bin/chromedriver
+      CHROME_NO_SANDBOX: "true"
+
+      DISPLAY: ":99"
       START_VNC: ${START_VNC:-false}
+
+      MAX_PARALLEL_RUNS: ${MAX_PARALLEL_RUNS:-4}
+      RUN_TIMEOUT_SECONDS: ${RUN_TIMEOUT_SECONDS:-300}
+      PAGE_LOAD_TIMEOUT: ${PAGE_LOAD_TIMEOUT:-30}
+
+      ARC_USERNAME: ${ARC_USERNAME:-demo}
+      ARC_PASSWORD: ${ARC_PASSWORD:-demo}
+
     volumes:
       - run_history:/data
-    # Chromium tab crashes with small /dev/shm; give it room.
+
     shm_size: "1gb"
+
+    init: true
+
     restart: unless-stopped
+
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/healthz', timeout=5).raise_for_status()"]
+      test:
+        - CMD
+        - python
+        - -c
+        - "import httpx; httpx.get('http://127.0.0.1:8000/healthz', timeout=5).raise_for_status()"
+
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 30s
 
 volumes:
   run_history:
+    name: arcaptcha-run-history
